@@ -6,23 +6,34 @@
 MPU6050 mpu;
 
 uint8_t fifoBuffer[64];
-Quaternion quat;
+Quaternion quatMeasured;
 VectorInt16 accel;
 VectorInt16 gyro;
+
+Quaternion quatRef;
+Quaternion quatErr;
+VectorFloat axisPErr;
+
+float motor[4];
+
+const int kQP = 1;
+
+inline const float zeroNeg(const float value) // If value is negative then return zero
+{
+  return value > 0 ? value : 0;
+}
 
 void setup() 
 {
  	Wire.begin();
-  	//Wire.setClock(400000);
+  Wire.setClock(400000);
 	Serial.begin(115200);
 
 	mpu.initialize();
 
-	while (Serial.available() && Serial.read()); // empty buffer
-
-	const int dmpStatus = mpu.dmpInitialize();
-
-	if(dmpStatus==0) {
+	while (Serial.read() >= 0); // empty buffer
+  
+	if(mpu.dmpInitialize()==0) {
 
 		Serial.println("Successfully initialized dmp!");
 
@@ -33,46 +44,61 @@ void setup()
 			calibrateWrite();
 		}
 		mpu.setDMPEnabled(true);
+    
+	} else
+	{
+		Serial.print("Failed to initialize dmp!");
 	}
 }
 
 void loop() 
 {
 	if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
-		mpu.dmpGetQuaternion(&quat, fifoBuffer);
-    	mpu.dmpGetAccel(&accel, fifoBuffer);
-		mpu.dmpGetGyro(&gyro, fifoBuffer);
-
-		Serial.print("Quat =(");
-		Serial.print(quat.w);
-		Serial.print(", ");
-		Serial.print(quat.y);
-		Serial.print(", ");
-		Serial.print(quat.z);
-		Serial.print(", ");
-		Serial.print(quat.x);
-		Serial.println(")");
-
-		const float igu = 250.0f / pow(2, 15); // From units to °/s. Also inverse it because multiplication is faster than division
-
-		Serial.print("Gyro =(");
-		Serial.print(gyro.x * igu);
-		Serial.print(", ");
-		Serial.print(gyro.y * igu);
-		Serial.print(", ");
-		Serial.print(gyro.z * igu);
-		Serial.println(")");
-
-		const float iau = 1.0f / pow(2, 14);
-
-		Serial.print("Accel =(");
-		Serial.print(accel.x * iau);
-		Serial.print(", ");
-		Serial.print(accel.y * iau);
-		Serial.print(", ");
-		Serial.print(accel.z * iau);
-		Serial.println(")");
+		
+    GetRawSensor();
+		CalculateError();
+    CalculateMotorValues();
 	}
+}
+
+void GetRawSensor() {
+  mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
+  mpu.dmpGetAccel(&accel, fifoBuffer);
+  mpu.dmpGetGyro(&gyro, fifoBuffer);
+}
+
+void CalculateError()
+{
+	quatErr = quatRef.getProduct(quatMeasured.getConjugate());
+	if(quatErr.w < 0)
+	{
+		quatErr = quatErr.getConjugate();
+	}
+	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
+}
+
+// Motor layout
+//
+//   0     1
+//      X
+//   2     3
+
+void CalculateMotorValues()
+{
+  // Assuming torque is proportional to the motor values
+  motor[0] = zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y);
+  motor[1] = zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y);
+  motor[2] = zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y);
+  motor[3] = zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y);
+  Serial.print("Err =(");
+  Serial.print(motorSpeed[0]);
+  Serial.print(", ");
+  Serial.print(motorSpeed[1]);
+  Serial.print(", ");
+  Serial.print(motorSpeed[2]);
+  Serial.print(", ");
+  Serial.print(motorSpeed[3]);
+  Serial.println(")");
 }
 
 void calibrateRead() {
