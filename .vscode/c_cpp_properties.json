@@ -18,8 +18,7 @@
             "includePath": [
                 "B:\\Programs\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                 "B:\\Programs\\Arduino\\hardware\\arduino\\avr\\variants\\eightanaloginputs",
-                "C:\\Users\\s\\Documents\\Arduino\\libraries\\MPU6050",
-                "C:\\Users\\s\\Documents\\Arduino\\libraries\\I2Cdev",
+                "C:\\Users\\s\\Documents\\Arduino\\libraries\\MPU6050\\src",
                 "B:\\Programs\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
                 "B:\\Programs\\Arduino\\hardware\\arduino\\avr\\libraries\\EEPROM\\src",
                 "b:\\programs\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",

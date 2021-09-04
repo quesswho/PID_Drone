@@ -82,21 +82,20 @@ void CalculateError()
 
 void CalculateMotorValues()
 {
-
 	// Assuming torque is proportional to the motor values
 	motor[0] = zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y);
 	motor[1] = zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y);
 	motor[2] = zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y);
 	motor[3] = zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y);
 	Serial.print("Err =(");
-	Serial.print(motorSpeed[0]);
+	Serial.print(motor[0]);
 	Serial.print(", ");
-	Serial.print(motorSpeed[1]);
+	Serial.print(motor[1]);
 	Serial.print(", ");
-	Serial.print(motorSpeed[2]);
+	Serial.print(motor[2]);
 	Serial.print(", ");
-	Serial.print(motorSpeed[3]);
-Serial.println(")");
+	Serial.print(motor[3]);
+	Serial.println(")");
 }
 
 void calibrateRead() {
