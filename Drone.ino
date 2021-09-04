@@ -20,21 +20,20 @@ const int kQP = 1;
 
 inline const float zeroNeg(const float value) // If value is negative then return zero
 {
-  return value > 0 ? value : 0;
+  	return value > 0 ? value : 0;
 }
 
 void setup() 
 {
  	Wire.begin();
-  Wire.setClock(400000);
+ 	Wire.setClock(400000);
 	Serial.begin(115200);
 
 	mpu.initialize();
 
 	while (Serial.read() >= 0); // empty buffer
   
-	if(mpu.dmpInitialize()==0) {
-
+	if(mpu.dmpInitialize() == 0) {
 		Serial.println("Successfully initialized dmp!");
 
 		if(EEPROM.read(0) == 1) // Check whether offsets are written or not
@@ -44,7 +43,6 @@ void setup()
 			calibrateWrite();
 		}
 		mpu.setDMPEnabled(true);
-    
 	} else
 	{
 		Serial.print("Failed to initialize dmp!");
@@ -54,17 +52,16 @@ void setup()
 void loop() 
 {
 	if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
-		
-    GetRawSensor();
+		GetRawSensor();
 		CalculateError();
-    CalculateMotorValues();
+		CalculateMotorValues();
 	}
 }
 
 void GetRawSensor() {
-  mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
-  mpu.dmpGetAccel(&accel, fifoBuffer);
-  mpu.dmpGetGyro(&gyro, fifoBuffer);
+	mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
+	mpu.dmpGetAccel(&accel, fifoBuffer);
+	mpu.dmpGetGyro(&gyro, fifoBuffer);
 }
 
 void CalculateError()
@@ -85,20 +82,21 @@ void CalculateError()
 
 void CalculateMotorValues()
 {
-  // Assuming torque is proportional to the motor values
-  motor[0] = zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y);
-  motor[1] = zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y);
-  motor[2] = zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y);
-  motor[3] = zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y);
-  Serial.print("Err =(");
-  Serial.print(motorSpeed[0]);
-  Serial.print(", ");
-  Serial.print(motorSpeed[1]);
-  Serial.print(", ");
-  Serial.print(motorSpeed[2]);
-  Serial.print(", ");
-  Serial.print(motorSpeed[3]);
-  Serial.println(")");
+
+	// Assuming torque is proportional to the motor values
+	motor[0] = zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y);
+	motor[1] = zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y);
+	motor[2] = zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y);
+	motor[3] = zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y);
+	Serial.print("Err =(");
+	Serial.print(motorSpeed[0]);
+	Serial.print(", ");
+	Serial.print(motorSpeed[1]);
+	Serial.print(", ");
+	Serial.print(motorSpeed[2]);
+	Serial.print(", ");
+	Serial.print(motorSpeed[3]);
+Serial.println(")");
 }
 
 void calibrateRead() {
