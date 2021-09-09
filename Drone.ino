@@ -14,11 +14,11 @@ Quaternion quatRef;
 Quaternion quatErr;
 VectorFloat axisPErr;
 VectorFloat axisIErr;
-VectorFloat axisDerr;
+VectorFloat axisDErr;
 
 float motor[4];
 
-const float kQP = 1.0f;
+const float kQP = 0.5f;
 const float kQI = 1.0f;
 const float kQD = 1.0f;
 
@@ -28,7 +28,7 @@ float throttle = 0;
 // Optionally can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
 unsigned long currentTime = 0;
 unsigned long lastTime = 0;
-unsigned long elapsedTime = 0;
+float elapsedTime = 0.0f;
 
 inline const float zeroNeg(const float value) // If value is negative then return zero
 {
@@ -64,49 +64,69 @@ void setup()
 
 void loop() 
 {
-	if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
-		GetRawSensor();
-		CalculateError();
-		CalculateMotorValues();
-	}
+  if(micros() - lastTime > 1000) // 1ms minimum between each iteration
+  {
+  	if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
+  		GetRawSensor();
+  		CalculateError();
+  		CalculateMotorValues();
+  	}
+  }
 }
 
 void GetRawSensor() {
 	mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
 	mpu.dmpGetAccel(&accel, fifoBuffer);
 	mpu.dmpGetGyro(&gyro, fifoBuffer);
+  currentTime = micros();
+  elapsedTime = (currentTime - lastTime) / 1000000.0f;
+  lastTime = currentTime;
 }
 
 void CalculateError()
 {
+
+
+  
 	quatErr = quatRef.getProduct(quatMeasured.getConjugate());
 	if(quatErr.w < 0)
 	{
 		quatErr = quatErr.getConjugate();
 	}
-	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
-	currentTime = micros();
-	elapsedTime = currentTime - lastTime; // elapsed time is used for calculating the inegral and derivative of the error
-	// We need to leave 3d_mathhelper or rewrite it on a fork	
-	axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
-	const float invT = 1.0f / elapsedTime;
-	axisDErr = VectorFloat(axisPErr.x * invT, axisPErr.y * invT, axisPErr.z * invT);	
+ 
+	//const float invT = 1.0f / elapsedTime;
+  //axisDErr = VectorFloat((quatErr.x - axisPErr.x) * invT, (quatErr.y - axisPErr.y) * invT, (quatErr.z - axisPErr.z) * invT); // Calculate derivate by getting the difference between current and last value divided by time
+	// Maybe calculate rate of change divided by length from set point to avoid overshooting
 	
-	Serial.print("AxisIErr =(");
+	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
+
+	//axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
+
+	
+
+ /* Serial.print("AxisPErr =(");
+  Serial.print(axisPErr.x);
+  Serial.print(", ");
+  Serial.print(axisPErr.y);
+  Serial.print(", ");
+  Serial.print(axisPErr.z);
+  Serial.println(")");
+  */
+	/*Serial.print("AxisIErr =(");
 	Serial.print(axisIErr.x);
 	Serial.print(", ");
 	Serial.print(axisIErr.y);
 	Serial.print(", ");
 	Serial.print(axisIErr.z);
 	Serial.println(")");
-	
-	Serial.print("AxisDErr =(");
+	*/
+	/*Serial.print("AxisDErr =(");
 	Serial.print(axisDErr.x);
 	Serial.print(", ");
 	Serial.print(axisDErr.y);
 	Serial.print(", ");
 	Serial.print(axisDErr.z);
-	Serial.println(")");
+	Serial.println(")");*/
 }
 
 // Motor layout
@@ -122,7 +142,7 @@ void CalculateMotorValues()
 	motor[1] = throttle + kQP * (zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y));
 	motor[2] = throttle + kQP * (zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y));
 	motor[3] = throttle + kQP * (zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y));
-/*	Serial.print("Err =(");
+	Serial.print("Err =(");
 	Serial.print(motor[0]);
 	Serial.print(", ");
 	Serial.print(motor[1]);
@@ -131,7 +151,7 @@ void CalculateMotorValues()
 	Serial.print(", ");
 	Serial.print(motor[3]);
 	Serial.println(")");
-*/
+
 }
 
 void calibrateRead() {
