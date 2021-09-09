@@ -13,10 +13,22 @@ VectorInt16 gyro;
 Quaternion quatRef;
 Quaternion quatErr;
 VectorFloat axisPErr;
+VectorFloat axisIErr;
+VectorFloat axisDerr;
 
 float motor[4];
 
-const int kQP = 1;
+const float kQP = 1.0f;
+const float kQI = 1.0f;
+const float kQD = 1.0f;
+
+float throttle = 0;
+
+// Do not run the program for more than 71 minutes because it will overflow
+// Optionally can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
+unsigned long currentTime = 0;
+unsigned long lastTime = 0;
+unsigned long elapsedTime = 0;
 
 inline const float zeroNeg(const float value) // If value is negative then return zero
 {
@@ -47,6 +59,7 @@ void setup()
 	{
 		Serial.print("Failed to initialize dmp!");
 	}
+	lastTime = micros();
 }
 
 void loop() 
@@ -72,6 +85,28 @@ void CalculateError()
 		quatErr = quatErr.getConjugate();
 	}
 	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
+	currentTime = micros();
+	elapsedTime = currentTime - lastTime; // elapsed time is used for calculating the inegral and derivative of the error
+	// We need to leave 3d_mathhelper or rewrite it on a fork	
+	axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
+	const float invT = 1.0f / elapsedTime;
+	axisDErr = VectorFloat(axisPErr.x * invT, axisPErr.y * invT, axisPErr.z * invT);	
+	
+	Serial.print("AxisIErr =(");
+	Serial.print(axisIErr.x);
+	Serial.print(", ");
+	Serial.print(axisIErr.y);
+	Serial.print(", ");
+	Serial.print(axisIErr.z);
+	Serial.println(")");
+	
+	Serial.print("AxisDErr =(");
+	Serial.print(axisDErr.x);
+	Serial.print(", ");
+	Serial.print(axisDErr.y);
+	Serial.print(", ");
+	Serial.print(axisDErr.z);
+	Serial.println(")");
 }
 
 // Motor layout
@@ -83,11 +118,11 @@ void CalculateError()
 void CalculateMotorValues()
 {
 	// Assuming torque is proportional to the motor values
-	motor[0] = zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y);
-	motor[1] = zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y);
-	motor[2] = zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y);
-	motor[3] = zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y);
-	Serial.print("Err =(");
+	motor[0] = throttle + kQP * (zeroNeg(axisPErr.x) + zeroNeg(-axisPErr.y));
+	motor[1] = throttle + kQP * (zeroNeg(-axisPErr.x) + zeroNeg(-axisPErr.y));
+	motor[2] = throttle + kQP * (zeroNeg(axisPErr.x) + zeroNeg(axisPErr.y));
+	motor[3] = throttle + kQP * (zeroNeg(-axisPErr.x) + zeroNeg(axisPErr.y));
+/*	Serial.print("Err =(");
 	Serial.print(motor[0]);
 	Serial.print(", ");
 	Serial.print(motor[1]);
@@ -96,6 +131,7 @@ void CalculateMotorValues()
 	Serial.print(", ");
 	Serial.print(motor[3]);
 	Serial.println(")");
+*/
 }
 
 void calibrateRead() {
