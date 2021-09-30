@@ -53,7 +53,7 @@ void setup()
 	if(mpu.dmpInitialize() == 0) {
 		Serial.println("Successfully initialized dmp!");
 
-		if(EEPROM.read(0) == 0x4B) { // Check whether offsets are written or not by comparing with the unique magic number 0x4B
+		if(EEPROM.length() < 0 || EEPROM.read(0) == 0x4B) { // Check whether offsets are written or not by comparing with the unique magic number 0x4B
 			calibrateRead();
 		} else {
 			calibrateWrite();
@@ -76,15 +76,15 @@ void loop()
 
 	if(micros() - lastTime > 1000) { // 1ms minimum between each iteration
 		if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
-			GetRawSensor();
-			CalculateError();
-			CalculateMotorValues();
-			ApplyControlledThrust();
+			getRawSensor();
+			calculateError();
+			calculateMotorValues();
+			applyControlledThrust();
 		}
 	}
 }
 
-void GetRawSensor() 
+void getRawSensor() 
 {
 	mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
 	mpu.dmpGetAccel(&accel, fifoBuffer);
@@ -94,7 +94,7 @@ void GetRawSensor()
 	lastTime = currentTime;
 }
 
-void CalculateError()
+void calculateError()
 {
 	quatErr = quatRef.getProduct(quatMeasured.getConjugate());
 	if(quatErr.w < 0) {
@@ -140,7 +140,7 @@ void CalculateError()
 //      X
 //   2     3
 
-void CalculateMotorValues()
+void calculateMotorValues()
 {
 	// Currently assuming thrust is proportional to the motor values
 	motor[0] = min(throttle + kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
@@ -158,7 +158,7 @@ void CalculateMotorValues()
 	Serial.println(")");
 }
 
-void ApplyControlledThrust()
+void applyControlledThrust()
 {
 	analogWrite(pinMotor0 * 256 - 1, OUTPUT);
 	analogWrite(pinMotor1 * 256 - 1, OUTPUT);
