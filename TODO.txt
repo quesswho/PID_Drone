@@ -1,4 +1,4 @@
 # Fixing yaw by adding something to the motor values
 # Adjust for voltage drops
-# Adjust for the motor values ratio to the torque
+# Adjust for the non proportional voltage thrust ratio
 # Develop a radio protocol
