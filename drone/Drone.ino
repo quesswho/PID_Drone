@@ -35,13 +35,11 @@ unsigned long currentTime = 0;
 unsigned long lastTime = 0;
 float elapsedTime = 0.0f;
 
-inline const float negativeZero(const float value) // If value is negative then return zero
-{
+inline const float negativeZero(const float value) { // If value is negative then return zero
   	return value > 0 ? value : 0;
 }
 
-void setup() 
-{
+void setup() {
  	Wire.begin();
  	Wire.setClock(400000);
 	Serial.begin(115200);
@@ -71,8 +69,7 @@ void setup()
 	lastTime = micros();
 }
 
-void loop() 
-{
+void loop() {
 
 	if(micros() - lastTime > 1000) { // 1ms minimum between each iteration
 		if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
@@ -84,8 +81,7 @@ void loop()
 	}
 }
 
-void getRawSensor() 
-{
+void getRawSensor() {
 	mpu.dmpGetQuaternion(&quatMeasured, fifoBuffer);
 	mpu.dmpGetAccel(&accel, fifoBuffer);
 	mpu.dmpGetGyro(&gyro, fifoBuffer);
@@ -94,8 +90,7 @@ void getRawSensor()
 	lastTime = currentTime;
 }
 
-void calculateError()
-{
+void calculateError(){
 	quatErr = quatRef.getProduct(quatMeasured.getConjugate());
 	if(quatErr.w < 0) {
 		quatErr = quatErr.getConjugate();
@@ -140,8 +135,7 @@ void calculateError()
 //      X
 //   2     3
 
-void calculateMotorValues()
-{
+void calculateMotorValues() {
 	// Currently assuming thrust is proportional to the motor values
 	motor[0] = min(throttle + kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
 	motor[1] = min(throttle + kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
@@ -158,16 +152,14 @@ void calculateMotorValues()
 	Serial.println(")");
 }
 
-void applyControlledThrust()
-{
+void applyControlledThrust() {
 	analogWrite(pinMotor0 * 256 - 1, OUTPUT);
 	analogWrite(pinMotor1 * 256 - 1, OUTPUT);
 	analogWrite(pinMotor2 * 256 - 1, OUTPUT);
 	analogWrite(pinMotor3 * 256 - 1, OUTPUT);
 }
 
-void calibrateRead() 
-{
+void calibrateRead() {
 	// Lambda expression to retrieve imu offsets
 	auto readEEPROM = [](int index) -> int16_t {
 		int16_t value;
@@ -185,8 +177,7 @@ void calibrateRead()
 	mpu.PrintActiveOffsets();
 }
 
-void calibrateWrite() 
-{
+void calibrateWrite() {
 	Serial.println("Calculating calibration offsets, please let the sensor rest.");
 	mpu.CalibrateAccel(6);
    	mpu.CalibrateGyro(6);
