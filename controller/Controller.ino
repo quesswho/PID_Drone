@@ -1,11 +1,28 @@
+#include <Joystick.h>
+
+// Create the Joystick
+Joystick_ Joystick;
+
+// Constant that maps the physical pin to the joystick button.
+const int pinToButtonMap = 9;
+
 void setup() {
-	Serial.begin(115200);
-	pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(pinToButtonMap, INPUT_PULLUP);
+
+  Joystick.begin();
 }
 
+// Last state of the button
+int lastButtonState = 0;
+
 void loop() {
-	digitalWrite(LED_BUILTIN, HIGH);
-	delay(200);
-	digitalWrite(LED_BUILTIN, LOW);
-	delay(200);
+
+  // Read pin values
+  int currentButtonState = !digitalRead(pinToButtonMap);
+  if (currentButtonState != lastButtonState) {
+    Joystick.setButton(0, currentButtonState);
+    lastButtonState = currentButtonState;
+  }
+
+  delay(50);
 }
