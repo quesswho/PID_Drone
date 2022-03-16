@@ -1,0 +1,6 @@
+Drone controller
+MX	Move X	3	SLIDER	X Rotation	0	1.0	0.0
+MY	Move Y	3	SLIDER	Y Rotation	0	1.0	0.0
+ROT	Rotate X	3	SLIDER	X Axis	0	1.0	0.0
+ALT	Up/Down	3	SLIDER	Z Axis	0	1.0	0.0
+BLINK	blink	1	BUTTON	Button 0	0	0.0	0.0

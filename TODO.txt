@@ -1,4 +1,9 @@
+// Radio communication
+# Usbhub serial communication to arduino
+# Radio communication to drone
+
+
+// Flight
 # Fixing yaw by adding something to the motor values
 # Adjust for voltage drops
 # Adjust for the non proportional voltage thrust ratio
-# Develop a radio protocol
