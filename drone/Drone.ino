@@ -1,7 +1,14 @@
+// MPU6050
 #include <MPU6050_6Axis_MotionApps_V6_12.h>
 #include <Wire.h>
 
-#include <EEPROM.h> // Read/Write calibration offsets on the onboard eeprom
+// Radio
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+
+// Read/Write to the onboard EEPROM
+#include <EEPROM.h>
 
 MPU6050 mpu;
 
@@ -29,7 +36,7 @@ const int pinMotor1 = 8;
 const int pinMotor2 = 10;
 const int pinMotor3 = 11;
 
-// Do not run the program for more than 71 minutes because it will overflow
+// Do not run the program for more than 71 minutes because time will overflow
 // Optionally can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
 unsigned long currentTime = 0;
 unsigned long lastTime = 0;
