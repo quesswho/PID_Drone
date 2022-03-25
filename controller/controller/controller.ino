@@ -2,8 +2,8 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
-RF24 radio(7, 8);
-const byte address[6] = "00001";
+RF24 radio(7, 9);
+const byte address[6] = "01234";
 
 bool light = false;
 int mx, my, rot, alt;
@@ -16,6 +16,8 @@ void setup() {
   radio.begin();
   radio.openWritingPipe(address);
   radio.setPALevel(RF24_PA_MIN);
+  radio.setAutoAck(true);
+  radio.setPayloadSize(10);
   radio.stopListening();
 }
 
@@ -23,7 +25,9 @@ void loop() {
   static byte packet[10];
   if (Serial.available() > 0) {
     Serial.readBytes(packet, 10); // read full packet
-	radio.write(&packet, sizeof(packet)); // Send packet through radio transmitter
+    //radio.write(&packet, 10); // Send packet through radio transmitter
+	  radio.writeFast(&packet, 10); // Send packet through radio transmitter
+    
     byte mask = packet[0];
     if((mask & 0b10000000) > 0) {
       if((mask & 0b00000001) > 0) {
@@ -56,5 +60,5 @@ void loop() {
       Serial.println();
     }
   }
-  while(Serial.available() > 
+  //while(Serial.available() > 
 }

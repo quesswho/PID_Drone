@@ -6,10 +6,19 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <printf.h>
 
 // Read/Write to the onboard EEPROM
 #include <EEPROM.h>
 
+// Radio
+RF24 radio(8, 9);
+const byte address[6] = "01234";
+
+bool light = false;
+int mx, my, rot, alt;
+
+// Control system
 MPU6050 mpu;
 
 uint8_t fifoBuffer[64];
@@ -74,10 +83,18 @@ void setup() {
 	pinMode(pinMotor3, OUTPUT);
  
 	lastTime = micros();
+
+	radio.begin();
+  radio.openReadingPipe(0, address);
+  radio.setPALevel(RF24_PA_MIN);
+  radio.setPayloadSize(10);
+  radio.startListening();
+  printf_begin();
 }
 
 void loop() {
 
+  readTransmitter();
 	if(micros() - lastTime > 1000) { // 1ms minimum between each iteration
 		if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
 			getRawSensor();
@@ -86,6 +103,46 @@ void loop() {
 			applyControlledThrust();
 		}
 	}
+}
+
+void readTransmitter() {
+  static char packet[10];
+  if (radio.available()) {
+    radio.read(&packet, 10);
+    byte mask = packet[0];
+    //radio.printDetails();
+    Serial.println(mask);
+    if((mask & 0b10000000) > 0) {
+      if((mask & 0b00000001) > 0) {
+        mx = (packet[1] << 8) | packet[2];
+        Serial.print(" mx: ");
+        Serial.print(mx);
+      }
+      if((mask & 0b00000010) > 0) {
+        my = (packet[3] << 8) | packet[4];
+        Serial.print(" my: ");
+        Serial.print(my);
+      }
+      if((mask & 0b00000100) > 0) {
+        rot = (packet[5] << 8) | packet[6];
+        Serial.print(" rot: ");
+        Serial.print(rot);
+      }
+      if((mask & 0b00001000) > 0) {
+        alt = (packet[7] << 8) | packet[8];
+        analogWrite(5, (alt + 512)/4);
+        Serial.print(" alt: ");
+        Serial.print(alt);
+      }
+      if((mask & 0b00010000) > 0) {
+        light = packet[9];
+        //digitalWrite(5, light);
+        Serial.print(" Light: ");
+        Serial.print(light);
+      }
+      Serial.println();
+    }
+  }
 }
 
 void getRawSensor() {
@@ -148,7 +205,7 @@ void calculateMotorValues() {
 	motor[1] = min(throttle + kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
 	motor[2] = min(throttle + kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y)), 1.0f);
 	motor[3] = min(throttle + kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y)), 1.0f);
-	Serial.print("Err =(");
+	/*Serial.print("Err =(");
 	Serial.print(motor[0]);
 	Serial.print(", ");
 	Serial.print(motor[1]);
@@ -157,6 +214,7 @@ void calculateMotorValues() {
 	Serial.print(", ");
 	Serial.print(motor[3]);
 	Serial.println(")");
+  */
 }
 
 void applyControlledThrust() {
