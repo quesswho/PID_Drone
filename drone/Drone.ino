@@ -86,10 +86,12 @@ void setup() {
 
 	radio.begin();
   radio.openReadingPipe(0, address);
-  radio.setPALevel(RF24_PA_MIN);
+  radio.setPALevel(RF24_PA_MAX);
+  radio.setAutoAck(true);
   radio.setPayloadSize(10);
   radio.startListening();
   printf_begin();
+  radio.printDetails();
 }
 
 void loop() {
@@ -107,6 +109,7 @@ void loop() {
 
 void readTransmitter() {
   static char packet[10];
+  
   if (radio.available()) {
     radio.read(&packet, 10);
     byte mask = packet[0];
@@ -142,6 +145,10 @@ void readTransmitter() {
         Serial.println();
       }
     }
+  } else if(radio.getARC() == 0) {
+       radio.startListening();
+  } else {
+    Serial.println(radio.getARC());
   }
 }
 
