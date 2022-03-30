@@ -16,7 +16,7 @@ RF24 radio(8, 9);
 const byte address[6] = "01234";
 
 bool light = false;
-int mx, my, rot, alt;
+int mx = 0, my = 0, rot = 0, alt = 0;
 
 // Control system
 MPU6050 mpu;
@@ -38,7 +38,7 @@ const float kQP = 0.5f;
 const float kQI = 1.0f;
 const float kQD = 1.0f;
 
-float throttle = 0;
+float throttle = 0.0f;
 
 const int pinMotor0 = 9;
 const int pinMotor1 = 8;
@@ -99,6 +99,7 @@ void loop() {
   readTransmitter();
 	if(micros() - lastTime > 1000) { // 1ms minimum between each iteration
 		if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
+      applyControls();
 			getRawSensor();
 			calculateError();
 			calculateMotorValues();
@@ -117,13 +118,13 @@ void readTransmitter() {
       if((mask & 0b10000000) > 0) {
         if((mask & 0b00000001) > 0) {
           mx = (packet[1] << 8) | packet[2];
-          Serial.print(" mx: ");
-          Serial.print(mx);
+         // Serial.print(" mx: ");
+        //  Serial.print(mx);
         }
         if((mask & 0b00000010) > 0) {
           my = (packet[3] << 8) | packet[4];
-          Serial.print(" my: ");
-          Serial.print(my);
+        //  Serial.print(" my: ");
+        //  Serial.print(my);
         }
         if((mask & 0b00000100) > 0) {
           rot = (packet[5] << 8) | packet[6];
@@ -131,18 +132,19 @@ void readTransmitter() {
           Serial.print(rot);
         }
         if((mask & 0b00001000) > 0) {
-          alt = (packet[7] << 8) | packet[8];
+          alt = ((packet[7] << 8) | packet[8]);
           analogWrite(5, (alt + 512)/4);
-          Serial.print(" alt: ");
-          Serial.print(alt);
+       //   alt
+         // Serial.print(" alt: ");
+        //  Serial.print(alt);
         }
         if((mask & 0b00010000) > 0) {
           light = packet[9];
           //digitalWrite(5, light);
-          Serial.print(" Light: ");
-          Serial.print(light);
+        //  Serial.print(" Light: ");
+        //  Serial.print(light);
         }
-        Serial.println();
+     //   Serial.println();
       }
     }
   } else if(radio.getARC() == 0) {
@@ -150,6 +152,13 @@ void readTransmitter() {
   } else {
     Serial.println(radio.getARC());
   }
+}
+
+void applyControls() {
+  throttle += (float)alt * 0.00000390625; // 1/(256*1000)
+  Serial.print("t=");
+  Serial.print(throttle);
+  printf(", a=%i, b=%i\n", alt, mx);
 }
 
 void getRawSensor() {

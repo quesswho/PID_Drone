@@ -50,13 +50,13 @@ void read_user_input() {
 }
 
 void deadzone_fix() {
-   if(abs(mx) < 13) {
+   if(abs(mx) <= 12) {
       mx = 0;
     }
-    if(abs(my) < 13) {
+    if(abs(my) <= 12) {
       my = 0;
     }
-    if(abs(rot) < 17) {
+    if(abs(rot) <= 20) {
       rot = 0;
     }
 }
