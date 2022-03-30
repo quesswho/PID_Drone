@@ -9,5 +9,6 @@ This library provides user access to the onboard DMP(Digital Motion Processor) w
 2. Clone the repository `git clone https://github.com/quesswho/PID_Drone.git`
 3. Get the [Game Control Plus](http://lagers.org.uk/gamecontrol/) library installed through Processing by Sketch->Import Library->Add Library
 4. If using Arduino IDE go Tools->Library Manager, then search for mpu6050 and install the library by Electronic Cats (Should be option 3)
-5. Setup a circuit with an arduino and a mpu6050 imu. Example:
+5. Also get the library RF24 TMRh20
+6. Setup a circuit with an arduino and a mpu6050 imu. Example:
 ![Arduino and Mpu6050](/pics/imusetup.jpg)
