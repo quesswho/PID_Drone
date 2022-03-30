@@ -12,7 +12,7 @@ void setup() {
   Serial.begin(38400);
   pinMode(5, OUTPUT);
   Serial.flush();
-  
+
   radio.begin();
   radio.openWritingPipe(address);
   radio.setPALevel(RF24_PA_MIN);
@@ -23,6 +23,7 @@ void setup() {
 
 void loop() {
   static byte packet[10];
+  //Serial.println("Test");
   if (Serial.available() > 0) {
     Serial.readBytes(packet, 10); // read full packet
     //radio.write(&packet, 10); // Send packet through radio transmitter
