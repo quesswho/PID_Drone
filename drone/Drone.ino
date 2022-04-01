@@ -117,22 +117,22 @@ void readTransmitter() {
     if(mask > 0) {
       if((mask & 0b10000000) > 0) {
         if((mask & 0b00000001) > 0) {
-          mx = (packet[1] << 8) | packet[2];
+          mx = (short)(packet[1] << 8) | packet[2];
          // Serial.print(" mx: ");
         //  Serial.print(mx);
         }
         if((mask & 0b00000010) > 0) {
-          my = (packet[3] << 8) | packet[4];
+          my = (short)(packet[3] << 8) | packet[4];
         //  Serial.print(" my: ");
         //  Serial.print(my);
         }
         if((mask & 0b00000100) > 0) {
-          rot = (packet[5] << 8) | packet[6];
+          rot = (short)(packet[5] << 8) | packet[6];
           Serial.print(" rot: ");
           Serial.print(rot);
         }
         if((mask & 0b00001000) > 0) {
-          alt = ((packet[7] << 8) | packet[8]);
+          alt = (short)(packet[7] << 8) | packet[8];
           analogWrite(5, (alt + 512)/4);
        //   alt
          // Serial.print(" alt: ");
@@ -155,7 +155,7 @@ void readTransmitter() {
 }
 
 void applyControls() {
-  throttle += (float)alt * 0.00000390625; // 1/(256*1000)
+  throttle = max((float)alt * 0.00000390625, 0.6f); // 1/(256*1000)
   Serial.print("t=");
   Serial.print(throttle);
   printf(", a=%i, b=%i\n", alt, mx);

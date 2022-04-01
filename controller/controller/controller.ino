@@ -2,7 +2,7 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
-RF24 radio(7, 9);
+RF24 radio(7, 9); // CE CSN
 const byte address[6] = "01234";
 
 bool light = false;
@@ -23,12 +23,10 @@ void setup() {
 
 void loop() {
   static byte packet[10];
-  //Serial.println("Test");
   if (Serial.available() > 0) {
     Serial.readBytes(packet, 10); // read full packet
-    //radio.write(&packet, 10); // Send packet through radio transmitter
     radio.write(&packet, 10); // Send packet through radio transmitter
-
+	// Read packet and print.
     byte mask = packet[0];
     if ((mask & 0b10000000) > 0) {
       if ((mask & 0b00000001) > 0) {
@@ -54,12 +52,10 @@ void loop() {
       }
       if ((mask & 0b00010000) > 0) {
         light = packet[9];
-        //digitalWrite(5, light);
         Serial.print(" Light: ");
         Serial.print(light);
       }
       Serial.println();
     }
   }
-  //while(Serial.available() >
 }
