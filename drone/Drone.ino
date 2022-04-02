@@ -109,7 +109,7 @@ void loop() {
 }
 
 void readTransmitter() {
-  static char packet[10];
+  static byte packet[10];
   
   if (radio.available()) {
     radio.read(&packet, 10);
@@ -117,23 +117,23 @@ void readTransmitter() {
     if(mask > 0) {
       if((mask & 0b10000000) > 0) {
         if((mask & 0b00000001) > 0) {
-          mx = (short)(packet[1] << 8) | packet[2];
+          mx = (unsigned short)(packet[1] << 8) | packet[2];
          // Serial.print(" mx: ");
         //  Serial.print(mx);
         }
         if((mask & 0b00000010) > 0) {
-          my = (short)(packet[3] << 8) | packet[4];
+          my = (unsigned short)(packet[3] << 8) | packet[4];
         //  Serial.print(" my: ");
         //  Serial.print(my);
         }
         if((mask & 0b00000100) > 0) {
-          rot = (short)(packet[5] << 8) | packet[6];
-          Serial.print(" rot: ");
-          Serial.print(rot);
+          rot = (unsigned short)(packet[5] << 8) | packet[6];
+          //Serial.print(" rot: ");
+          //Serial.print(rot);
         }
         if((mask & 0b00001000) > 0) {
-          alt = (short)(packet[7] << 8) | packet[8];
-          analogWrite(5, (alt + 512)/4);
+          alt = (unsigned short)(packet[7] << 8) | packet[8];
+          //analogWrite(5, (alt + 512)/4);
        //   alt
          // Serial.print(" alt: ");
         //  Serial.print(alt);
@@ -155,10 +155,11 @@ void readTransmitter() {
 }
 
 void applyControls() {
-  throttle = max((float)alt * 0.00000390625, 0.6f); // 1/(256*1000)
-  Serial.print("t=");
+  throttle = max(min(throttle + (float)alt * 0.0000078125, 0.6f), 0.0f); // 1/(256*500)
+ /* Serial.print("t=");
   Serial.print(throttle);
   printf(", a=%i, b=%i\n", alt, mx);
+  */
 }
 
 void getRawSensor() {
@@ -176,13 +177,13 @@ void calculateError(){
 		quatErr = quatErr.getConjugate();
 	}
 
-	//const float invT = 1.0f / elapsedTime;
- 	//axisDErr = VectorFloat((quatErr.x - axisPErr.x) * invT, (quatErr.y - axisPErr.y) * invT, (quatErr.z - axisPErr.z) * invT); // Calculate derivate by getting the difference between current and last value divided by time
+	const float invT = 1.0f / elapsedTime;
+ 	axisDErr = VectorFloat((quatErr.x - axisPErr.x) * invT, (quatErr.y - axisPErr.y) * invT, (quatErr.z - axisPErr.z) * invT); // Calculate derivate by getting the difference between current and last value divided by time
 	// Maybe calculate rate of change divided by length from set point to avoid overshooting
 	
 	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
 
-	//axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
+	axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
 
 	/* Serial.print("AxisPErr =(");
 	Serial.print(axisPErr.x);
@@ -217,11 +218,27 @@ void calculateError(){
 
 void calculateMotorValues() {
 	// Currently assuming thrust is proportional to the motor values
-	motor[0] = min(throttle + kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
-	motor[1] = min(throttle + kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y)), 1.0f);
-	motor[2] = min(throttle + kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y)), 1.0f);
-	motor[3] = min(throttle + kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y)), 1.0f);
-	/*Serial.print("Err =(");
+	motor[0] = min(throttle 
+	          + kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y))
+	          + kQD * (negativeZero(axisDErr.x) + negativeZero(-axisDErr.y))
+	          , 0.95f);
+  
+	motor[1] = min(throttle 
+	          + kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y))
+            + kQD * (negativeZero(-axisDErr.x) + negativeZero(-axisDErr.y))
+	          , 0.95f);
+            
+	motor[2] = min(throttle 
+	          + kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y))
+            + kQD * (negativeZero(axisDErr.x) + negativeZero(axisDErr.y))
+	          , 0.95f);
+           
+	motor[3] = min(throttle 
+	          + kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y))
+            + kQD * (negativeZero(-axisDErr.x) + negativeZero(axisDErr.y))
+	          , 0.95f);
+           
+	Serial.print("Err =(");
 	Serial.print(motor[0]);
 	Serial.print(", ");
 	Serial.print(motor[1]);
@@ -230,7 +247,7 @@ void calculateMotorValues() {
 	Serial.print(", ");
 	Serial.print(motor[3]);
 	Serial.println(")");
-  */
+  
 }
 
 void applyControlledThrust() {
@@ -261,7 +278,7 @@ void calibrateRead() {
 void calibrateWrite() {
 	Serial.println("Calculating calibration offsets, please let the sensor rest.");
 	mpu.CalibrateAccel(6);
-   	mpu.CalibrateGyro(6);
+  mpu.CalibrateGyro(6);
 	mpu.PrintActiveOffsets(); // Print offsets for debugging reasons
 	if(EEPROM.length() > 12) {
 		EEPROM.put(1, mpu.getXAccelOffset());
