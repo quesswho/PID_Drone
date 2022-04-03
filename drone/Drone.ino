@@ -15,6 +15,7 @@
 RF24 radio(8, 9);
 const byte address[6] = "01234";
 
+// Controller input
 bool light = false;
 int mx = 0, my = 0, rot = 0, alt = 0;
 
@@ -28,15 +29,17 @@ VectorInt16 gyro;
 
 Quaternion quatRef;
 Quaternion quatErr;
-VectorFloat axisPErr;
-VectorFloat axisIErr;
-VectorFloat axisDErr;
+Quaternion axisPErr;
+Quaternion axisIErr;
+Quaternion axisDErr;
 
 float motor[4];
 
 const float kQP = 0.5f;
-const float kQI = 1.0f;
-const float kQD = 1.0f;
+const float kQI = 0.0f;
+const float kQD = 1.2f;
+
+const float controlsens = 0.01f;
 
 float throttle = 0.0f;
 
@@ -45,8 +48,8 @@ const int pinMotor1 = 8;
 const int pinMotor2 = 10;
 const int pinMotor3 = 11;
 
-// Do not run the program for more than 71 minutes because time will overflow
-// Optionally can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
+// Do not run the program for more than 71 minutes because the time will overflow
+// Optionally we can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
 unsigned long currentTime = 0;
 unsigned long lastTime = 0;
 float elapsedTime = 0.0f;
@@ -92,6 +95,8 @@ void setup() {
   radio.startListening();
   printf_begin();
   radio.printDetails();
+
+  quatRef = Quaternion(1.0f, 0.0f, 0.0f, 0.0f);
 }
 
 void loop() {
@@ -118,25 +123,15 @@ void readTransmitter() {
       if((mask & 0b10000000) > 0) {
         if((mask & 0b00000001) > 0) {
           mx = (unsigned short)(packet[1] << 8) | packet[2];
-         // Serial.print(" mx: ");
-        //  Serial.print(mx);
         }
         if((mask & 0b00000010) > 0) {
           my = (unsigned short)(packet[3] << 8) | packet[4];
-        //  Serial.print(" my: ");
-        //  Serial.print(my);
         }
         if((mask & 0b00000100) > 0) {
           rot = (unsigned short)(packet[5] << 8) | packet[6];
-          //Serial.print(" rot: ");
-          //Serial.print(rot);
         }
         if((mask & 0b00001000) > 0) {
           alt = (unsigned short)(packet[7] << 8) | packet[8];
-          //analogWrite(5, (alt + 512)/4);
-       //   alt
-         // Serial.print(" alt: ");
-        //  Serial.print(alt);
         }
         if((mask & 0b00010000) > 0) {
           light = packet[9];
@@ -144,7 +139,6 @@ void readTransmitter() {
         //  Serial.print(" Light: ");
         //  Serial.print(light);
         }
-     //   Serial.println();
       }
     }
   } else if(radio.getARC() == 0) {
@@ -155,11 +149,17 @@ void readTransmitter() {
 }
 
 void applyControls() {
-  throttle = max(min(throttle + (float)alt * 0.0000078125, 0.6f), 0.0f); // 1/(256*500)
- /* Serial.print("t=");
-  Serial.print(throttle);
-  printf(", a=%i, b=%i\n", alt, mx);
-  */
+  throttle = max(min(throttle + (float)alt * 0.0000078125f, 0.6f), 0.0f); // 1/(256*500)
+  
+  static float sum_mx = 0.0f;
+  static float sum_my = 0.0f;
+
+  // Smooth input, easier of derivative component
+  const float c = controlsens/512.0f;
+  sum_mx = min((sum_mx + mx*c) * 0.95f, 0.3f); // s_{n+1} = (s_n+input) * decay
+  sum_my = min((sum_my + my*c) * 0.95f, 0.3f);
+  
+  quatRef = Quaternion(1.0f, sum_my, sum_mx, 0.0f).getNormalized();
 }
 
 void getRawSensor() {
@@ -177,28 +177,63 @@ void calculateError(){
 		quatErr = quatErr.getConjugate();
 	}
 
-	const float invT = 1.0f / elapsedTime;
- 	axisDErr = VectorFloat((quatErr.x - axisPErr.x) * invT, (quatErr.y - axisPErr.y) * invT, (quatErr.z - axisPErr.z) * invT); // Calculate derivate by getting the difference between current and last value divided by time
-	// Maybe calculate rate of change divided by length from set point to avoid overshooting
-	
-	axisPErr = VectorFloat(quatErr.x, quatErr.y, quatErr.z);
+  /* Serial.print("quatRef =(");
+  Serial.print(quatRef.x);
+  Serial.print(", ");
+  Serial.print(quatRef.y);
+  Serial.print(", ");
+  Serial.print(quatRef.z);
+  Serial.print(", ");
+  Serial.print(quatRef.w);
+  Serial.println(")");*/
 
-	axisIErr = VectorFloat(axisPErr.x * elapsedTime, axisPErr.y * elapsedTime, axisPErr.z * elapsedTime);
+  /*
+  Serial.print("quatErr =(");
+  Serial.print(quatErr.x);
+  Serial.print(", ");
+  Serial.print(quatErr.y);
+  Serial.print(", ");
+  Serial.print(quatErr.z);
+  Serial.print(", ");
+  Serial.print(quatErr.w);
+  Serial.println(")");*/
+ 
 
-	/* Serial.print("AxisPErr =(");
+	const float invT = 1.0f / (elapsedTime*20);
+ 	axisDErr = Quaternion((quatErr.w - axisPErr.w) * invT, (quatErr.x - axisPErr.x) * invT, (quatErr.y - axisPErr.y) * invT, (quatErr.z - axisPErr.z) * invT); 
+ 	// Calculate derivate by getting the difference between current and last value over time
+  //if(true || axisDErr.y > 1.0f) {
+    /*Serial.print("AxisDErr =(");
+    Serial.print(quatErr.y);
+    Serial.print(", ");
+    Serial.print(axisPErr.y);
+    Serial.print(", ");
+    Serial.print(axisDErr.y);
+    Serial.print(", ");
+    Serial.print(quatErr.y-axisPErr.y);
+    Serial.println(")");
+ // }*/
+	axisPErr = Quaternion(quatErr.w, quatErr.x, quatErr.y, quatErr.z);
+  const float decay = 0.98f;
+	axisIErr = Quaternion(axisIErr.w * decay + axisPErr.w * elapsedTime, axisIErr.x * decay + axisPErr.x * elapsedTime, axisIErr.y * decay + axisPErr.y * elapsedTime , axisIErr.z * decay + axisPErr.z * elapsedTime);
+	/*Serial.print("AxisPErr =(");
 	Serial.print(axisPErr.x);
 	Serial.print(", ");
 	Serial.print(axisPErr.y);
 	Serial.print(", ");
 	Serial.print(axisPErr.z);
-	Serial.println(")");
-	*/
+  Serial.print(", ");
+  Serial.print(axisPErr.w);
+	Serial.println(")");*/
+	
 	/*Serial.print("AxisIErr =(");
 	Serial.print(axisIErr.x);
 	Serial.print(", ");
 	Serial.print(axisIErr.y);
 	Serial.print(", ");
 	Serial.print(axisIErr.z);
+ Serial.print(", ");
+ Serial.print(axisIErr.w);
 	Serial.println(")");
 	*/
 	/*Serial.print("AxisDErr =(");
@@ -207,38 +242,70 @@ void calculateError(){
 	Serial.print(axisDErr.y);
 	Serial.print(", ");
 	Serial.print(axisDErr.z);
+ Serial.print(", ");
+ Serial.print(axisDErr.w);
 	Serial.println(")");*/
 }
 
 // Motor layout
-//
-//   0     1
+//      |
+//   0     2
 //      X
-//   2     3
+//   1     3
+//      |
 
 void calculateMotorValues() {
 	// Currently assuming thrust is proportional to the motor values
 	motor[0] = min(throttle 
-	          + kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y))
-	          + kQD * (negativeZero(axisDErr.x) + negativeZero(-axisDErr.y))
+	          //+ kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y))
+            + kQI * (negativeZero(axisIErr.x) + negativeZero(axisIErr.y))
+            //+ kQD * (negativeZero(axisDErr.x) + negativeZero(axisDErr.y))
 	          , 0.95f);
   
 	motor[1] = min(throttle 
-	          + kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y))
-            + kQD * (negativeZero(-axisDErr.x) + negativeZero(-axisDErr.y))
+	          //+ kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y))
+            + kQI * (negativeZero(-axisIErr.x) + negativeZero(axisIErr.y))
+	          //+ kQD * (negativeZero(-axisDErr.x) + negativeZero(axisDErr.y))
+	          , 0.95f);
+           
+	motor[2] = min(throttle 
+	          //+ kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y))
+            + kQI * (negativeZero(axisIErr.x) + negativeZero(-axisIErr.y))
+            //+ kQD * (negativeZero(axisDErr.x) + negativeZero(-axisDErr.y))
 	          , 0.95f);
             
-	motor[2] = min(throttle 
-	          + kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y))
-            + kQD * (negativeZero(axisDErr.x) + negativeZero(axisDErr.y))
-	          , 0.95f);
-           
 	motor[3] = min(throttle 
-	          + kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y))
-            + kQD * (negativeZero(-axisDErr.x) + negativeZero(axisDErr.y))
+	          //+ kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y))
+            + kQI * (negativeZero(-axisIErr.x) + negativeZero(-axisIErr.y))
+            //+ kQD * (negativeZero(-axisDErr.x) + negativeZero(-axisDErr.y))
 	          , 0.95f);
            
-	Serial.print("Err =(");
+ // if(motor[0] == 0.95f) {
+    /*Serial.print("AxisPErr =(");
+    Serial.print(axisPErr.x);
+    Serial.print(", ");
+    Serial.print(axisPErr.y);
+    Serial.print(", ");
+    Serial.print(axisPErr.z);
+    Serial.print(", ");
+    Serial.print(axisPErr.w);
+    Serial.println(")");
+    */
+    /*Serial.print("AxisDErr =(");
+    Serial.print(axisDErr.x);
+    Serial.print(", ");
+    Serial.print(axisDErr.y);
+    Serial.print(", ");
+    Serial.print(axisDErr.z);
+    Serial.print(", ");
+    Serial.print(axisDErr.w);
+    Serial.print(", ");
+    Serial.print(quatErr.y);
+    Serial.println(")");*/
+
+    
+ // }
+	Serial.print("motor =(");
 	Serial.print(motor[0]);
 	Serial.print(", ");
 	Serial.print(motor[1]);
