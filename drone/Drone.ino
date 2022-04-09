@@ -11,6 +11,9 @@
 // Read/Write to the onboard EEPROM
 #include <EEPROM.h>
 
+// Regulating electronic speed control with pulse width modulation
+#include <Servo.h>
+
 // Radio
 RF24 radio(8, 9);
 const byte address[6] = "01234";
@@ -43,10 +46,15 @@ const float controlsens = 0.01f;
 
 float throttle = 0.0f;
 
-const int pinMotor0 = 9;
-const int pinMotor1 = 8;
-const int pinMotor2 = 10;
-const int pinMotor3 = 11;
+const int pinMotor0 = 6;
+const int pinMotor1 = 5;
+const int pinMotor2 = 4;
+const int pinMotor3 = 3;
+
+Servo motor0;
+Servo motor1;
+Servo motor2;
+Servo motor3;
 
 // Do not run the program for more than 71 minutes because the time will overflow
 // Optionally we can divide the micros() function by 4 because it only has a resolution of 4 micro seconds on 16MHz boards
@@ -57,6 +65,8 @@ float elapsedTime = 0.0f;
 inline const float negativeZero(const float value) { // If value is negative then return zero
   	return value > 0 ? value : 0;
 }
+
+
 
 void setup() {
  	Wire.begin();
@@ -80,11 +90,11 @@ void setup() {
 		Serial.print("Failed to initialize dmp!");
 	}
 
-	pinMode(pinMotor0, OUTPUT);
-	pinMode(pinMotor1, OUTPUT);
-	pinMode(pinMotor2, OUTPUT);
-	pinMode(pinMotor3, OUTPUT);
- 
+  motor0.attach(pinMotor0, 1000, 2000);
+  motor1.attach(pinMotor1, 1000, 2000);
+  motor2.attach(pinMotor2, 1000, 2000);
+  motor3.attach(pinMotor3, 1000, 2000);
+  
 	lastTime = micros();
 
 	radio.begin();
@@ -260,25 +270,25 @@ void calculateMotorValues() {
 	          //+ kQP * (negativeZero(axisPErr.x) + negativeZero(axisPErr.y))
             + kQI * (negativeZero(axisIErr.x) + negativeZero(axisIErr.y))
             //+ kQD * (negativeZero(axisDErr.x) + negativeZero(axisDErr.y))
-	          , 0.95f);
+	          , 1.0f);
   
 	motor[1] = min(throttle 
 	          //+ kQP * (negativeZero(-axisPErr.x) + negativeZero(axisPErr.y))
             + kQI * (negativeZero(-axisIErr.x) + negativeZero(axisIErr.y))
 	          //+ kQD * (negativeZero(-axisDErr.x) + negativeZero(axisDErr.y))
-	          , 0.95f);
+	          , 1.0f);
            
 	motor[2] = min(throttle 
 	          //+ kQP * (negativeZero(axisPErr.x) + negativeZero(-axisPErr.y))
             + kQI * (negativeZero(axisIErr.x) + negativeZero(-axisIErr.y))
             //+ kQD * (negativeZero(axisDErr.x) + negativeZero(-axisDErr.y))
-	          , 0.95f);
+	          , 1.0f);
             
 	motor[3] = min(throttle 
 	          //+ kQP * (negativeZero(-axisPErr.x) + negativeZero(-axisPErr.y))
             + kQI * (negativeZero(-axisIErr.x) + negativeZero(-axisIErr.y))
             //+ kQD * (negativeZero(-axisDErr.x) + negativeZero(-axisDErr.y))
-	          , 0.95f);
+	          , 1.0f);
            
  // if(motor[0] == 0.95f) {
     /*Serial.print("AxisPErr =(");
@@ -318,10 +328,10 @@ void calculateMotorValues() {
 }
 
 void applyControlledThrust() {
-	analogWrite(pinMotor0 * 256 - 1, OUTPUT);
-	analogWrite(pinMotor1 * 256 - 1, OUTPUT);
-	analogWrite(pinMotor2 * 256 - 1, OUTPUT);
-	analogWrite(pinMotor3 * 256 - 1, OUTPUT);
+  motor0.write(motor[0] * 180);
+  motor1.write(motor[1] * 180);
+  motor2.write(motor[2] * 180);
+  motor3.write(motor[3] * 180);
 }
 
 void calibrateRead() {
