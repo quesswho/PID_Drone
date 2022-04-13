@@ -32,7 +32,7 @@ void setup() {
   }
   
   // Initialize Serial
-  String portName = Serial.list()[2];
+  String portName = Serial.list()[4]; // 1 pc, 3 4 laptop
   serial = new Serial(this, portName, rate);
   println("Using " + portName + " as serial device.");
 }
