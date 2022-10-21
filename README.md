@@ -4,6 +4,8 @@ To retrieve the sensor values a [library](https://github.com/ElectronicCats/mpu6
 The average user normally only has access to raw accelerometer and gyroscope values which are stored in their respective registers documentet on the official register map for the MPU-6000 and MPU-6050.
 This library provides user access to the onboard DMP(Digital Motion Processor) which is capable of generating a quaternion orientation.
 
+![Final Drone](/pics/drone.jpg)
+
 ## Installation
 1. Firstly, you need [processing](https://processing.org/).
 2. Clone the repository `git clone https://github.com/quesswho/PID_Drone.git`
